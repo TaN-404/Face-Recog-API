@@ -28,12 +28,12 @@ MODEL_MAPPING = {
 
 class Detection:
     def __init__(self):
-        # caffemodel = "./resources/detection_model/Widerface-RetinaFace.caffemodel"
-        # deploy = "./resources/detection_model/deploy.prototxt"
+        caffemodel = "./models/detection_model/Widerface-RetinaFace.caffemodel"
+        deploy = "./models/detection_model/deploy.prototxt"
         stack = traceback.extract_stack()
         dirname = os.path.dirname(stack[-2].filename)
-        caffemodel = os.path.join(dirname,'..','resources','detection_model','Widerface-RetinaFace.caffemodel')
-        deploy = os.path.join(dirname,'..','resources','detection_model','deploy.prototxt')
+        caffemodel = os.path.join(dirname,'..','models','detection_model','Widerface-RetinaFace.caffemodel')
+        deploy = os.path.join(dirname,'..','models','detection_model','deploy.prototxt')
         self.detector = cv2.dnn.readNetFromCaffe(deploy, caffemodel)
         self.detector_confidence = 0.6
         

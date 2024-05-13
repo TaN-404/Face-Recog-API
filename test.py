@@ -5,17 +5,17 @@ import numpy as np
 import argparse
 import warnings
 import time
-
-from .src.anti_spoof_predict import AntiSpoofPredict
-from .src.generate_patches import CropImage
-from .src.utility import parse_model_name
+from src.anti_spoof_predict import AntiSpoofPredict
+from src.generate_patches import CropImage
+from src.utility import parse_model_name
 warnings.filterwarnings('ignore')
 
 
-SAMPLE_IMAGE_PATH = ""
+# SAMPLE_IMAGE_PATH = "samples/img.jpeg"
 
 
-def check_image(image):
+def check_image(image_path):
+    image = cv2.imread(image_path)
     height, width, channel = image.shape
     if width/height != 3/4:
         print("Image is not appropriate!!!\nHeight/Width should be 4/3.")
@@ -24,7 +24,10 @@ def check_image(image):
         return True
 
 
-def test(image, model_dir, device_id):
+def test(model_dir, device_id,image_path):
+    image = cv2.imread(image_path)
+    if image is None:
+        raise ValueError("Image not found or unable to load.")
     model_test = AntiSpoofPredict(device_id)
     image_cropper = CropImage()
     image_bbox = model_test.get_bbox(image)
@@ -65,12 +68,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_dir",
         type=str,
-        default="./resources/anti_spoof_models",
+        default="./models/anti_spoof_models",
         help="model_lib used to test")
     parser.add_argument(
-        "--image_name",
+        "--image_path",
         type=str,
-        default="image_F1.jpg",
+        default="./samples/img.jpeg",
         help="image used to test")
     args = parser.parse_args()
-    test(args.image_name, args.model_dir, args.device_id)
+    test(args.image_path, args.model_dir, args.device_id)

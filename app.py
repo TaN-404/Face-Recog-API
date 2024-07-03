@@ -26,7 +26,7 @@ def embeddings(name, path):
         return None, "Image not found or unable to load."
     embeddings = face_recognition.face_encodings(image)
 
-    with open(os.path.join('/db', f'{name}.pickle'), 'wb') as file:
+    with open(os.path.join('db', f'{name}.pickle'), 'wb') as file:
         pickle.dump(embeddings, file)
 
     with open('./user_list.txt', 'a') as user_list_file:
@@ -37,7 +37,7 @@ def recognize(img, db_path):
     if image is None:
         return None, "Image not found or unable to load."
 
-    embeddings_unknown = face_recognition.face_encodings(img)
+    embeddings_unknown = face_recognition.face_encodings(image)
     if len(embeddings_unknown) == 0:
         return 'no_persons_found'
     else:
@@ -53,7 +53,7 @@ def recognize(img, db_path):
         file = open(path_, 'rb')
         embeddings = pickle.load(file)
 
-        match = face_recognition.compare_faces([embeddings], embeddings_unknown)[0]
+        match = np.array(face_recognition.compare_faces([embeddings], embeddings_unknown)).any()
         j += 1
 
     if match:

@@ -10,7 +10,7 @@ from src.anti_spoof_predict import AntiSpoofPredict
 from src.generate_patches import CropImage
 from src.utility import parse_model_name
 import pickle
-import face_recognition
+from deepface import DeepFace
 
 warnings.filterwarnings('ignore')
 
@@ -20,46 +20,34 @@ app = Flask(__name__)
 MODEL_DIR = "./models/anti_spoof_models"
 DEVICE_ID = 0
 
-def embeddings(name, path):
-    image = cv2.imread(path)
-    if image is None:
-        return None, "Image not found or unable to load."
-    embeddings = face_recognition.face_encodings(image)
+# Directory to store registered faces and encodings
+REGISTERED_FACES_DIR = "registered_faces"
+ENCODINGS_DIR = "db_deep"
 
-    with open(os.path.join('db', f'{name}.pickle'), 'wb') as file:
-        pickle.dump(embeddings, file)
+# Ensure the directories exist
+if not os.path.exists(REGISTERED_FACES_DIR):
+    os.makedirs(REGISTERED_FACES_DIR)
 
-    with open('./user_list.txt', 'a') as user_list_file:
-        user_list_file.write(f'{name}\n')
-    
-def recognize(img, db_path):
-    image = cv2.imread(img)
-    if image is None:
-        return None, "Image not found or unable to load."
+if not os.path.exists(ENCODINGS_DIR):
+    os.makedirs(ENCODINGS_DIR)
 
-    embeddings_unknown = face_recognition.face_encodings(image)
-    if len(embeddings_unknown) == 0:
-        return 'no_persons_found'
-    else:
-        embeddings_unknown = embeddings_unknown[0]
+def save_face(image, user_name):
+    face_path = os.path.join(REGISTERED_FACES_DIR, f"{user_name}.jpg")
+    cv2.imwrite(face_path, image)
 
-    db_dir = sorted(os.listdir(db_path))
+def save_encoding(user_name, encoding):
+    encoding_path = os.path.join(ENCODINGS_DIR, f"{user_name}.pkl")
+    with open(encoding_path, 'wb') as f:
+        pickle.dump(encoding, f)
 
-    match = False
-    j = 0
-    while not match and j < len(db_dir):
-        path_ = os.path.join(db_path, db_dir[j])
-
-        file = open(path_, 'rb')
-        embeddings = pickle.load(file)
-
-        match = np.array(face_recognition.compare_faces([embeddings], embeddings_unknown)).any()
-        j += 1
-
-    if match:
-        return db_dir[j - 1][:-7]
-    else:
-        return 'unknown_person'
+def load_encodings():
+    encodings = {}
+    for file_name in os.listdir(ENCODINGS_DIR):
+        if file_name.endswith('.pkl'):
+            user_name = file_name.split('.')[0]
+            with open(os.path.join(ENCODINGS_DIR, file_name), 'rb') as f:
+                encodings[user_name] = pickle.load(f)
+    return encodings
 
 
 def test(image_path):
@@ -90,38 +78,33 @@ def test(image_path):
     label = np.argmax(prediction)
     return label
 
-@app.route('/register', methods = ['POST'])
+@app.route('/register', methods=['POST'])
 def register():
-    if 'name' not in request.form:
-        return jsonify({'error': 'No name provided.'}), 400
-    name = request.form['name']
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided.'}), 400
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({'error': 'No image selected.'}), 400
-    if file:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join('/tmp', filename)
-        file.save(file_path)
-        embeddings(name, file_path)
-        return jsonify({'success': 'User registered successfully.'}), 200
-
+    user_name = request.form['name']
+    image_file = request.files['image']
+    image = cv2.imdecode(np.fromstring(image_file.read(), np.uint8), cv2.IMREAD_COLOR)
+    
+    save_face(image, user_name)
+    
+    encoding = DeepFace.represent(image, model_name='VGG-Face')[0]["embedding"]
+    save_encoding(user_name, encoding)
+    
+    return jsonify({"message": "User registered successfully"}), 200
 
 @app.route('/login', methods=['POST'])
 def login():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided.'}), 400
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({'error': 'No image selected.'}), 400
-    if file:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join('/tmp', filename)
-        file.save(file_path)
-        db_path = 'db'
-        name = recognize(file_path, db_path )
-        return jsonify({'success': f'{name} logged in successfully.'}), 200
+    image_file = request.files['image']
+    image = cv2.imdecode(np.fromstring(image_file.read(), np.uint8), cv2.IMREAD_COLOR)
+    
+    encodings = load_encodings()
+    input_encoding = DeepFace.represent(image, model_name='VGG-Face')[0]["embedding"]
+    
+    for user_name, registered_encoding in encodings.items():
+        result = DeepFace.verify(input_encoding, registered_encoding, model_name='VGG-Face', distance_metric='cosine')
+        if result["verified"]:
+            return jsonify({"message": f"Login successful for user {user_name}"}), 200
+    
+    return jsonify({"message": "Login failed"}), 401
 
 
 @app.route('/predict', methods=['POST'])

@@ -11,6 +11,8 @@ app = Flask(__name__)
 REGISTERED_FACES_DIR = "registered_faces"
 ENCODINGS_DIR = "db_deep"
 
+
+
 # Ensure the directories exist
 if not os.path.exists(REGISTERED_FACES_DIR):
     os.makedirs(REGISTERED_FACES_DIR)
@@ -35,6 +37,8 @@ def load_encodings():
             with open(os.path.join(ENCODINGS_DIR, file_name), 'rb') as f:
                 encodings[user_name] = pickle.load(f)
     return encodings
+
+
 
 @app.route('/register', methods=['POST'])
 def register():

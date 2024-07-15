@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        #videoElement {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Face Recognition App</h1>
+        <!-- <form id="registerForm" action="/register" method="post" enctype="multipart/form-data">
+            <h2>Register</h2>
+            <input type="text" name="name" placeholder="Enter your name" required>
+            <input type="file" name="image" accept="image/*">
+            <video id="videoElement" autoplay></video>
+            <input type="button" value="Capture" onclick="captureImage('registerForm')">
+            <input type="submit" value="Register">
+        </form> -->
+        <form id="loginForm" action="/login" method="post" enctype="multipart/form-data">
+            <h2>Login</h2>
+            <input type="file" name="image" accept="image/*">
+            <video id="videoElement" autoplay></video>
+            <input type="button" value="Capture" onclick="captureImage('loginForm')">
+            <input type="submit" value="Login">
+        </form>
+    </div>
+    <script>
+        const video = document.getElementById('videoElement');
+
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function (stream) {
+                    video.srcObject = stream;
+                })
+                .catch(function (error) {
+                    console.log("Something went wrong!");
+                });
+        }
+
+        function captureImage(formId) {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(function (blob) {
+                const form = document.getElementById(formId);
+                const fileInput = form.querySelector('input[type="file"]');
+                const file = new File([blob], "webcam.jpg", { type: "image/jpeg" });
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+            }, 'image/jpeg');
+        }
+    </script>
+</body>
+</html>

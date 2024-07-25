@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS 
 import os
 import cv2
 import numpy as np
@@ -13,6 +14,7 @@ from deepface import DeepFace
 warnings.filterwarnings('ignore')
 
 app = Flask(__name__)
+CORS(app)
 
 # Assuming the model directory and device ID are fixed for the API
 MODEL_DIR = "./models/anti_spoof_models"
@@ -106,4 +108,4 @@ def login():
     return jsonify({"message": "Login failed: User not recognized"}), 401
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0")

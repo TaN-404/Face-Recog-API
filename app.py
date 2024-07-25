@@ -2,9 +2,7 @@ from flask import Flask, request, jsonify
 import os
 import cv2
 import numpy as np
-import argparse
 import warnings
-import time
 from werkzeug.utils import secure_filename
 from src.anti_spoof_predict import AntiSpoofPredict
 from src.generate_patches import CropImage
@@ -49,16 +47,12 @@ def load_encodings():
                 encodings[user_name] = pickle.load(f)
     return encodings
 
-
-def test(image_path):
-    image = cv2.imread(image_path)
-    if image is None:
-        return None, "Image not found or unable to load."
+def anti_spoof_check(image):
     model_test = AntiSpoofPredict(DEVICE_ID)
     image_cropper = CropImage()
     image_bbox = model_test.get_bbox(image)
     prediction = np.zeros((1, 3))
-    test_speed = 0
+    
     for model_name in os.listdir(MODEL_DIR):
         h_input, w_input, model_type, scale = parse_model_name(model_name)
         param = {
@@ -76,7 +70,7 @@ def test(image_path):
         prediction += model_prediction
 
     label = np.argmax(prediction)
-    return label
+    return bool(label == 1)
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -96,6 +90,11 @@ def login():
     image_file = request.files['image']
     image = cv2.imdecode(np.fromstring(image_file.read(), np.uint8), cv2.IMREAD_COLOR)
     
+    # Perform anti-spoof check
+    if not anti_spoof_check(image):
+        return jsonify({"message": "Login failed: Spoof detected"}), 401
+
+    # Proceed with face recognition if anti-spoof check passed
     encodings = load_encodings()
     input_encoding = DeepFace.represent(image, model_name='VGG-Face')[0]["embedding"]
     
@@ -104,24 +103,7 @@ def login():
         if result["verified"]:
             return jsonify({"message": f"Login successful for user {user_name}"}), 200
     
-    return jsonify({"message": "Login failed"}), 401
-
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided.'}), 400
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({'error': 'No image selected.'}), 400
-    if file:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join('/tmp', filename)
-        file.save(file_path)
-        label = test(file_path)
-        if label is None:
-            return jsonify({'error': 'Failed to process image.'}), 500
-        return jsonify({'result': bool(label == 1)})
+    return jsonify({"message": "Login failed: User not recognized"}), 401
 
 if __name__ == '__main__':
     app.run(debug=True)
